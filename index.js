@@ -8,7 +8,9 @@
  */
 import { codexFingerprint, discover } from './lib/codex.js'
 import { readSkillDefinition, scanSkillRoots } from './lib/skills.js'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { codexHomeOf, findCodex, pluginBaseDir, pluginSkillsDir, runCodexJson } from './lib/codex.js'
 
 export const name = 'codex-share'
 
@@ -47,7 +49,26 @@ export function apply(ctx, config) {
 
   if (existsSync('/tmp/codex-share-debug.on')) {
     try {
-      writeFileSync('/tmp/codex-share-debug.json', JSON.stringify({ env: process.env, share }, null, 2))
+      const home = codexHomeOf(process.env)
+      const bin = findCodex(process.env)
+      let plugins
+      try {
+        const listed = runCodexJson(bin, ['plugin', 'list', '--json'], { env: process.env })
+        plugins = listed.ok ? listed.data?.installed?.map(entry => ({
+          name: entry.name, marketplaceName: entry.marketplaceName, enabled: entry.enabled,
+          source: entry.source, base: pluginBaseDir(entry, home), skills: pluginSkillsDir(entry, home),
+        })) : { error: listed.error }
+      } catch (error) {
+        plugins = { error: String(error) }
+      }
+      const diagnostics = {
+        home, bin,
+        globalRoot: join(home, 'skills'),
+        globalExists: existsSync(join(home, 'skills')),
+        globalEntries: existsSync(join(home, 'skills')) ? readdirSync(join(home, 'skills')).length : null,
+        plugins,
+      }
+      writeFileSync('/tmp/codex-share-debug.json', JSON.stringify({ env: process.env, share, diagnostics }, null, 2))
     } catch {
       // Debug output is best effort.
     }
