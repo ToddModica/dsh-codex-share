@@ -237,3 +237,40 @@ test('codexFingerprint moves when Codex installs a plugin version', () => {
   assert.notEqual(before, after)
   assert.equal(codexFingerprint({ CODEX_HOME: home }), after)
 })
+
+test('blank codexHome and codexBin from the patch file mean "unset"', () => {
+  const codexHome = fakeCodexHome()
+  write(join(codexHome, "plugins", "cache", "mkt", "remote", "3.0.0", "skills", "remote-skill", "SKILL.md"), "---\nname: remote-skill\ndescription: remote\n---\n")
+  const run = (bin, args) => {
+    assert.equal(bin, '/fake/codex')
+    if (args[0] === 'plugin') {
+      return {
+        ok: true,
+        data: {
+          installed: [
+            {
+              name: 'remote',
+              marketplaceName: 'mkt',
+              version: '3.0.0',
+              enabled: true,
+              source: { source: 'git', url: 'https://example.com/remote.git', ref: 'main' },
+            },
+          ],
+        },
+      }
+    }
+    return { ok: true, data: [] }
+  }
+
+  const share = discover({ codexHome: '', codexBin: '' }, {
+    env: { CODEX_HOME: codexHome },
+    run,
+    findCodex: () => '/fake/codex',
+  })
+
+  assert.equal(share.codexHome, codexHome)
+  assert.deepEqual(share.skillDirs, [
+    join(codexHome, 'skills'),
+    join(codexHome, 'plugins', 'cache', 'mkt', 'remote', '3.0.0', 'skills'),
+  ])
+})
