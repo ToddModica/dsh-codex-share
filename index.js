@@ -14,10 +14,6 @@ export const name = 'codex-share'
 /** Provider name shown in skill listings. */
 export const PROVIDER = 'codex'
 
-function configOf(ctx, config) {
-  return { ...(ctx?.config ?? {}), ...(config ?? {}) }
-}
-
 function warn(ctx, message) {
   try {
     ctx.logger?.warn?.(`codex-share: ${message}`)
@@ -35,7 +31,9 @@ function note(ctx, message) {
 }
 
 export function apply(ctx, config) {
-  const options = configOf(ctx, config)
+  // Cordis hands the row's `config` in as the second argument; reading
+  // ctx.config here would need `inject: ['config']` and fails activation.
+  const options = config ?? {}
 
   let share
   try {
