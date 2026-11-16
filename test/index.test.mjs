@@ -132,7 +132,7 @@ test('apply shares Codex skills and MCP servers with the harness', { skip: !enab
     assert.equal(provider.name, 'codex')
 
     const listed = await provider.list()
-    assert.equal(listed.complete, false)
+    assert.equal(listed.complete, true)
     assert.deepEqual(listed.candidates.map(candidate => candidate.name).sort(), ['from-codex', 'plugin-skill'])
 
     const definition = await provider.get(listed.candidates.find(candidate => candidate.name === 'from-codex'))

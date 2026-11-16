@@ -36,6 +36,7 @@ The bundle is configured in your profile's `cordis.patch.yml` (the row `id: code
 | `excludeServers` | `codex_app`, `computer-use`, `cua_repl`, `node_repl`, `itasca-mcp` | MCP servers never shared. |
 | `includeServers` | `[]` | When non-empty, share only these servers (ignores `excludeServers`). |
 | `skillDirs` | `[]` | Extra skill directories, appended after the Codex roots. |
+| `watchIntervalSeconds` | `30` | How often the plugin checks whether Codex installed or removed a plugin (see below). |
 
 A server Codex has disabled (`enabled = false`) is never shared.
 
@@ -62,9 +63,15 @@ Skill roots, in priority order:
 3. `$DSH_HOME/codex-share/skills` — an optional snapshot for machines with no Codex install
 4. `skillDirs` from the bundle config
 
-The first root that claims a skill name wins; later duplicates are logged. Discovery is one level deep, exactly like DSH: `root/<skill>/SKILL.md` or `root/<skill>.md`. The provider reports `complete: false`, so a newly installed Codex plugin's skills appear on the next lookup without restarting DSH.
+The first root that claims a skill name wins; later duplicates are logged. Discovery is one level deep, exactly like DSH: `root/<skill>/SKILL.md` or `root/<skill>.md`.
+
+Codex puts every plugin version in its own directory, so a marketplace refresh moves the skills to a new path. The plugin watches a cheap fingerprint of the Codex skill roots and the plugin cache (every `watchIntervalSeconds`) and re-discovers when it changes, which keeps DSH pointed at the directories that exist *now*. MCP servers are only read at startup; restart DSH after changing them in Codex.
 
 Frontmatter follows the DSH skill format: `name` (kebab-case) and `description` are required; `whenToUse`, `disable-model-invocation` and `user-invocable` are honoured. Codex skills already use this format, so they load unchanged.
+
+## Pairing with dsh-mini-sync
+
+When the profile is synced to another machine, [dsh-mini-sync](https://github.com/ToddModica/dsh-mini-sync) carries this bundle in its plugin inventory, so the other machine installs it and reads *its own* Codex install. Turn on **包含 Codex 技能目录** (`includeCodexSkills`) there if the other machine has no Codex: the Codex skills then travel as plain text and are written back to `$CODEX_HOME/skills`, still with no links.
 
 ## Windows notes
 

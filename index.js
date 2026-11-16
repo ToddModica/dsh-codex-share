@@ -6,7 +6,7 @@
  * hardlinks, so the same profile works on macOS and Windows and a synced
  * profile keeps working on a different machine.
  */
-import { discover } from './lib/codex.js'
+import { codexFingerprint, discover } from './lib/codex.js'
 import { readSkillDefinition, scanSkillRoots } from './lib/skills.js'
 
 export const name = 'codex-share'
@@ -44,22 +44,25 @@ export function apply(ctx, config) {
   }
   for (const message of share.warnings) warn(ctx, message)
 
-  mountSkills(ctx, share)
+  mountSkills(ctx, share, options)
   mountServers(ctx, share)
 }
 
-function mountSkills(ctx, share) {
+function mountSkills(ctx, share, options) {
   if (!Array.isArray(share.skillDirs) || share.skillDirs.length === 0) {
     note(ctx, 'Codex exposes no skill directories')
     return
   }
+  let current = share
+  let control
   const provider = {
     name: PROVIDER,
-    // Returning `complete: false` keeps the registry from caching the catalog:
-    // installing a Codex plugin then makes its skills appear without a restart.
     async list() {
-      const { candidates } = scanSkillRoots(share.skillDirs, { provider: PROVIDER })
-      return { candidates, complete: false }
+      const { candidates } = scanSkillRoots(current.skillDirs, { provider: PROVIDER })
+      // Complete: the registry may cache this catalog. `watchCodex` below
+      // invalidates it when Codex installs or removes a plugin, so a stale
+      // versioned directory never outlives the plugin it came from.
+      return { candidates, complete: true }
     },
     async get(candidate) {
       return readSkillDefinition(candidate)
@@ -67,7 +70,7 @@ function mountSkills(ctx, share) {
   }
 
   const { candidates, duplicates } = scanSkillRoots(share.skillDirs, { provider: PROVIDER })
-  let registered = false
+
   let dispose
   // Cordis only exposes a service through `inject`; touching `ctx.skills`
   // directly throws "cannot get property ... without inject" and would abort
@@ -78,12 +81,12 @@ function mountSkills(ctx, share) {
       warn(ctx, 'the skills service is not available; Codex skills are not shared')
       return
     }
-    if (registered) {
-      dispose?.()
-    }
+    dispose?.()
     try {
-      dispose = skills.registerProvider(() => provider)
-      registered = true
+      dispose = skills.registerProvider((serviceControl) => {
+        control = serviceControl
+        return provider
+      })
     } catch (error) {
       warn(ctx, `cannot register the Codex skill provider (${error?.message ?? error})`)
       return
@@ -93,6 +96,52 @@ function mountSkills(ctx, share) {
       note(ctx, `skill "${duplicate.name}" in ${duplicate.root} is shadowed by an earlier Codex directory`)
     }
   })
+
+  watchCodex(ctx, options, (refreshed) => {
+    current = refreshed
+    control?.invalidate()
+  })
+}
+
+/**
+ * Codex rewrites plugin directories when it updates a marketplace, and a
+ * refreshed plugin lives under a new version directory. Poll the cheap
+ * filesystem fingerprint and re-discover only when it moved, then drop the
+ * registry cache so the catalog reflects the new directories.
+ */
+function watchCodex(ctx, options, apply) {
+  const tick = () => {
+    let fingerprint
+    try {
+      fingerprint = codexFingerprint()
+    } catch {
+      return
+    }
+    if (fingerprint === last) return
+    last = fingerprint
+    try {
+      const refreshed = discover(options)
+      if (refreshed.skillDirs.length > 0) {
+        apply(refreshed)
+        note(ctx, `Codex skills changed; sharing ${refreshed.skillDirs.length} directories`)
+      }
+    } catch (error) {
+      warn(ctx, `cannot refresh Codex skills (${error?.message ?? error})`)
+    }
+  }
+  let last = (() => {
+    try {
+      return codexFingerprint()
+    } catch {
+      return ''
+    }
+  })()
+  const interval = Math.max(5, Number(options?.watchIntervalSeconds ?? 30)) * 1000
+  ctx.effect(() => {
+    const timer = setInterval(tick, interval)
+    timer.unref?.()
+    return () => clearInterval(timer)
+  }, 'codex-share.watch')
 }
 
 function mountServers(ctx, share) {

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 
 import {
+  codexFingerprint,
   DEFAULT_EXCLUDED_SERVERS,
   discover,
   findCodex,
@@ -224,4 +225,15 @@ test('findCodex honours CODEX_BIN, PATH and the usual install locations', () => 
   const installed = join(home, '.local', 'bin', process.platform === 'win32' ? 'codex.exe' : 'codex')
   write(installed, '#!/bin/sh\n')
   assert.equal(findCodex({ PATH: '' }, process.platform, home), installed)
+})
+test('codexFingerprint moves when Codex installs a plugin version', () => {
+  const home = mkdtempSync(join(tmpdir(), 'codex-share-fingerprint-'))
+  mkdirSync(join(home, 'skills', 'mine'), { recursive: true })
+  mkdirSync(join(home, 'plugins', 'cache', 'mkt', 'plug', '1.0.0'), { recursive: true })
+  const before = codexFingerprint({ CODEX_HOME: home })
+  mkdirSync(join(home, 'plugins', 'cache', 'mkt', 'plug', '1.1.0'), { recursive: true })
+  const after = codexFingerprint({ CODEX_HOME: home })
+
+  assert.notEqual(before, after)
+  assert.equal(codexFingerprint({ CODEX_HOME: home }), after)
 })
