@@ -1,0 +1,46 @@
+{
+  "name": "dsh-codex-share",
+  "version": "0.1.0",
+  "description": "Let DeepSeek Harness use the skills and MCP servers Codex already has, with no copies and no links.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ToddModica/dsh-codex-share.git"
+  },
+  "homepage": "https://github.com/ToddModica/dsh-codex-share#readme",
+  "bugs": {
+    "url": "https://github.com/ToddModica/dsh-codex-share/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "codex",
+    "skills",
+    "mcp"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "js-yaml": "^5.5.0"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

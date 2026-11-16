@@ -1,0 +1,31 @@
+# dsh-codex-share — reuse Codex's skills and MCP servers from DSH.
+#
+# Codex stays the single source of truth: this row reads the Codex profile at
+# startup and registers the skills it installs plus the MCP servers it
+# configures. Nothing is copied, linked or hardlinked, so the same profile works
+# on macOS and Windows and survives a move to another machine.
+- insert:
+    - id: codex-share
+      name: 'dsh-codex-share'
+      config:
+        # Codex home. Empty = $CODEX_HOME, else ~/.codex.
+        codexHome: ''
+        # Codex executable. Empty = find `codex` on PATH and in the usual
+        # install locations (including the Windows npm shims).
+        codexBin: ''
+        # Servers Codex owns for its own surfaces. They either need Codex-only
+        # environment or do nothing useful in DSH.
+        excludeServers:
+          - codex_app
+          - computer-use
+          - cua_repl
+          - node_repl
+          - itasca-mcp
+        # Opt in to specific servers instead of using the exclusion list above:
+        #   includeServers:
+        #     - anysearch
+        includeServers: []
+        # Extra skill directories appended after the Codex roots.
+        #   skillDirs:
+        #     - 'D:\shared\skills'
+        skillDirs: []
