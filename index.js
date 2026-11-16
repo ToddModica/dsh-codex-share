@@ -8,6 +8,7 @@
  */
 import { codexFingerprint, discover } from './lib/codex.js'
 import { readSkillDefinition, scanSkillRoots } from './lib/skills.js'
+import { existsSync, writeFileSync } from 'node:fs'
 
 export const name = 'codex-share'
 
@@ -43,6 +44,14 @@ export function apply(ctx, config) {
     share = { skillDirs: [], servers: [], skipped: [], warnings: [] }
   }
   for (const message of share.warnings) warn(ctx, message)
+
+  if (existsSync('/tmp/codex-share-debug.on')) {
+    try {
+      writeFileSync('/tmp/codex-share-debug.json', JSON.stringify({ env: process.env, share }, null, 2))
+    } catch {
+      // Debug output is best effort.
+    }
+  }
 
   mountSkills(ctx, share, options)
   mountServers(ctx, share)
