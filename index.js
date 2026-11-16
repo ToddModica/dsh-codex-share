@@ -65,17 +65,34 @@ function mountSkills(ctx, share) {
       return readSkillDefinition(candidate)
     },
   }
-  try {
-    ctx.skills.registerProvider(() => provider)
-  } catch (error) {
-    warn(ctx, `cannot register the Codex skill provider (${error?.message ?? error})`)
-    return
-  }
+
   const { candidates, duplicates } = scanSkillRoots(share.skillDirs, { provider: PROVIDER })
-  note(ctx, `sharing ${candidates.length} skills from ${share.skillDirs.length} Codex directories`)
-  for (const duplicate of duplicates) {
-    note(ctx, `skill "${duplicate.name}" in ${duplicate.root} is shadowed by an earlier Codex directory`)
-  }
+  let registered = false
+  let dispose
+  // Cordis only exposes a service through `inject`; touching `ctx.skills`
+  // directly throws "cannot get property ... without inject" and would abort
+  // activation.
+  ctx.inject(['skills'], (scoped) => {
+    const skills = scoped.skills
+    if (typeof skills?.registerProvider !== 'function') {
+      warn(ctx, 'the skills service is not available; Codex skills are not shared')
+      return
+    }
+    if (registered) {
+      dispose?.()
+    }
+    try {
+      dispose = skills.registerProvider(() => provider)
+      registered = true
+    } catch (error) {
+      warn(ctx, `cannot register the Codex skill provider (${error?.message ?? error})`)
+      return
+    }
+    note(ctx, `sharing ${candidates.length} skills from ${share.skillDirs.length} Codex directories`)
+    for (const duplicate of duplicates) {
+      note(ctx, `skill "${duplicate.name}" in ${duplicate.root} is shadowed by an earlier Codex directory`)
+    }
+  })
 }
 
 function mountServers(ctx, share) {

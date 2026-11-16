@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-share",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Let DeepSeek Harness use the skills and MCP servers Codex already has, with no copies and no links.",
   "type": "module",
   "main": "index.js",

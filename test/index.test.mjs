@@ -76,27 +76,38 @@ function fakeCodexBin(home) {
 
 function fakeContext(config) {
   const state = { providers: [], servers: [], effects: 0, warnings: [], notes: [] }
+  const skills = {
+    registerProvider(create) {
+      state.providers.push(create({ signal: new AbortController().signal, invalidate() {} }))
+      return () => {}
+    },
+  }
+  const mcpManager = {
+    register(name, entry) {
+      state.servers.push({ name, entry })
+      return () => {}
+    },
+  }
   const ctx = {
     config,
     logger: {
       warn: message => state.warnings.push(message),
       info: message => state.notes.push(message),
     },
-    skills: {
-      registerProvider(create) {
-        state.providers.push(create({ signal: new AbortController().signal, invalidate() {} }))
-      },
+    // Cordis hides services from a plugin that did not inject them; failing
+    // here keeps the plugin from regressing to a direct `ctx.skills` access.
+    get skills() {
+      throw new Error('cannot get property "skills" without inject')
+    },
+    get mcpManager() {
+      throw new Error('cannot get property "mcpManager" without inject')
     },
     inject(names, callback) {
-      assert.deepEqual(names, ['mcpManager'])
-      callback({
-        mcpManager: {
-          register(name, entry) {
-            state.servers.push({ name, entry })
-            return () => {}
-          },
-        },
-      })
+      const available = { skills, mcpManager }
+      for (const name of names) {
+        assert.ok(name in available, `unexpected injected service ${name}`)
+      }
+      callback(Object.fromEntries(names.map(name => [name, available[name]])))
     },
     effect(factory) {
       state.effects += 1
